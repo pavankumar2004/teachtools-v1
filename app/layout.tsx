@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Container } from "@/components/craft";
-import { EmailForm } from "@/components/email-form";
+import { NewsletterSignup } from "@/components/newsletter-signup";
 
 import { directory } from "@/directory.config";
 
@@ -79,6 +79,7 @@ const Header = () => {
         <div className="flex items-center gap-4">
           <a href="/about" className="text-sm hover:text-primary transition-colors">About</a>
           <a href="/submit" className="text-sm hover:text-primary transition-colors">Submit a Tool</a>
+          <a href="/newsletter" className="text-sm hover:text-primary transition-colors">Newsletter</a>
           <Subscribe />
         </div>
       </Container>
@@ -128,7 +129,7 @@ const Subscribe = () => {
             Get notified when new resources are added.
           </DialogDescription>
         </DialogHeader>
-        <EmailForm />
+        <NewsletterSignup title="" description="" />
         <div className="h-px" />
       </DialogContent>
     </Dialog>

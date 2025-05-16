@@ -48,6 +48,18 @@ export const bookmarks = pgTable("bookmarks", {
   search_results: text("search_results"),
 });
 
+// Subscribers table
+export const subscribers = pgTable("subscribers", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  source: text("source"),
+  userGroup: text("user_group"),
+  isVerified: boolean("is_verified").default(false).notNull(),
+  verificationToken: text("verification_token"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Relations
 export const bookmarksRelations = relations(bookmarks, ({ one }) => ({
   category: one(categories, {

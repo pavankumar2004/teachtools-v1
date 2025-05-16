@@ -5,8 +5,9 @@ import { getAllCategories, getAllBookmarks } from "@/lib/data";
 import { CategoryManager } from "@/components/admin/category-manager";
 import { BookmarkManager } from "@/components/admin/bookmark-manager";
 import { Section, Container } from "@/components/craft";
-import { Bookmark, FolderKanban, Settings2 } from "lucide-react";
+import { Bookmark, FolderKanban, Settings2, Users, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default async function AdminPage() {
   const categories = await getAllCategories();
@@ -49,6 +50,17 @@ export default async function AdminPage() {
                   <p className="text-sm text-muted-foreground">Categories</p>
                 </div>
               </Card>
+              <Link href="/admin/subscribers">
+                <Card className="flex items-center gap-3 p-3 hover:bg-accent transition-colors cursor-pointer">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <Mail className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium leading-none">Manage</p>
+                    <p className="text-sm text-muted-foreground">Subscribers</p>
+                  </div>
+                </Card>
+              </Link>
             </div>
           </div>
 
