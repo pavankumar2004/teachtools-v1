@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { subscribers } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
+
+// Add CORS headers to allow requests from any origin
+export const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+// Handle OPTIONS requests for CORS preflight
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
 
 export async function POST(request: Request) {
   try {
@@ -12,6 +24,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
+    // Get a fresh database connection
+    const db = getDb();
+    
     // Check if email already exists
     const existingSubscriber = await db
       .select()

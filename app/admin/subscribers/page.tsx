@@ -1,5 +1,5 @@
 import React from "react";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { subscribers } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { Main, Section, Container } from "@/components/craft";
@@ -22,14 +22,29 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-async function getSubscribers() {
+// Define the subscriber type
+type Subscriber = {
+  id: number;
+  email: string;
+  source: string | null;
+  userGroup: string | null;
+  isVerified: boolean;
+  verificationToken: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+async function getSubscribers(): Promise<Subscriber[]> {
   try {
+    // Get a fresh database connection
+    const db = getDb();
+    
     const allSubscribers = await db
       .select()
       .from(subscribers)
       .orderBy(desc(subscribers.createdAt));
     
-    return allSubscribers;
+    return allSubscribers as Subscriber[];
   } catch (error) {
     console.error("Error fetching subscribers:", error);
     return [];
