@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+// Mark this route as dynamic to avoid static generation issues
+export const dynamic = 'force-dynamic';
+
 // Define headers outside the function to make them available throughout the route handler
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

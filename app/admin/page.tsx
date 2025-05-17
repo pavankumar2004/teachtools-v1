@@ -1,17 +1,29 @@
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
-import { getAllCategories, getAllBookmarks } from "@/lib/data";
+import { getAllCategories, getAllBookmarks, Category, Bookmark as BookmarkType } from "@/lib/data";
 import { CategoryManager } from "@/components/admin/category-manager";
 import { BookmarkManager } from "@/components/admin/bookmark-manager";
 import { Section, Container } from "@/components/craft";
-import { Bookmark, FolderKanban, Settings2, Users, Mail } from "lucide-react";
+import { Bookmark as BookmarkIcon, FolderKanban, Settings2, Users, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
+// Mark this page as dynamic to ensure it's rendered at request time in production
+export const dynamic = 'force-dynamic';
+
 export default async function AdminPage() {
-  const categories = await getAllCategories();
-  const bookmarks = await getAllBookmarks();
+  // Wrap database calls in try/catch to handle potential errors during build time
+  let categories: Category[] = [];
+  let bookmarks: (BookmarkType & { category: Category | null })[] = [];
+  
+  try {
+    categories = await getAllCategories();
+    bookmarks = await getAllBookmarks();
+  } catch (error) {
+    console.error('Error fetching data for admin page:', error);
+    // Fallback data for build time
+  }
 
   return (
     <Section>
@@ -30,7 +42,7 @@ export default async function AdminPage() {
             <div className="flex items-center gap-4">
               <Card className="flex items-center gap-3 p-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                  <Bookmark className="h-4 w-4" />
+                  <BookmarkIcon className="h-4 w-4" />
                 </div>
                 <div>
                   <p className="text-sm font-medium leading-none">
@@ -69,7 +81,7 @@ export default async function AdminPage() {
             <div className="flex items-center justify-between">
               <TabsList className="grid w-[400px] grid-cols-2">
                 <TabsTrigger value="bookmarks" className="gap-2">
-                  <Bookmark className="h-4 w-4" />
+                  <BookmarkIcon className="h-4 w-4" />
                   Bookmarks
                 </TabsTrigger>
                 <TabsTrigger value="categories" className="gap-2">

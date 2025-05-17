@@ -1,7 +1,5 @@
 import React from "react";
-import { getDb } from "@/db";
-import { subscribers } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { getSubscribers, Subscriber } from "@/lib/server/subscribe";
 import { Main, Section, Container } from "@/components/craft";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,35 +19,6 @@ export const metadata = {
 // This ensures the page is not cached and always shows fresh data
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-// Define the subscriber type
-type Subscriber = {
-  id: number;
-  email: string;
-  source: string | null;
-  userGroup: string | null;
-  isVerified: boolean;
-  verificationToken: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-async function getSubscribers(): Promise<Subscriber[]> {
-  try {
-    // Get a fresh database connection
-    const db = getDb();
-    
-    const allSubscribers = await db
-      .select()
-      .from(subscribers)
-      .orderBy(desc(subscribers.createdAt));
-    
-    return allSubscribers as Subscriber[];
-  } catch (error) {
-    console.error("Error fetching subscribers:", error);
-    return [];
-  }
-}
 
 export default async function SubscribersAdminPage() {
   const subscribersList = await getSubscribers();

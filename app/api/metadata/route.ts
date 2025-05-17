@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { load } from "cheerio";
 
+// This is a server-side only API route
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     // Set CORS headers to allow requests from any origin
@@ -15,9 +18,10 @@ export async function GET(request: Request) {
     if (request.method === 'OPTIONS') {
       return new NextResponse(null, { status: 204, headers });
     }
-
-    const { searchParams } = new URL(request.url);
-    const url = searchParams.get("url");
+    
+    // Extract the URL from the request in a way that works with Next.js
+    const requestUrl = new URL(request.url);
+    const url = requestUrl.searchParams.get("url");
 
     if (!url) {
       return NextResponse.json({ error: "URL is required" }, { status: 400, headers });

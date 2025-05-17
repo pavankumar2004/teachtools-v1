@@ -1,30 +1,36 @@
 import { MetadataRoute } from "next";
-import { getAllBookmarks } from "@/lib/data";
 import { directory } from "@/directory.config";
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+// This is a simplified sitemap that doesn't rely on database connections
+// to avoid build errors during deployment
+export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = directory.baseUrl;
 
-  // Fetch all bookmarks
-  const bookmarks = await getAllBookmarks();
-
-  // Static pages
-  const staticPages: MetadataRoute.Sitemap = [
+  // Static pages only
+  return [
     {
       url: baseUrl,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1,
     },
+    {
+      url: `${baseUrl}/about`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/submit`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/newsletter`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    }
   ];
-
-  // Dynamic pages from bookmarks
-  const dynamicPages: MetadataRoute.Sitemap = bookmarks.map((bookmark) => ({
-    url: `${baseUrl}/${bookmark.slug}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly",
-    priority: 0.6,
-  }));
-
-  return [...staticPages, ...dynamicPages];
 }

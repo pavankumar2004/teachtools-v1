@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db/client";
+import { db, getDb } from "@/db/client";
 import { bookmarks } from "@/db/schema";
 import { eq } from "drizzle-orm";
+
+// Mark this route as dynamic to avoid static generation issues
+export const dynamic = 'force-dynamic';
 
 export async function DELETE(
   request: Request,

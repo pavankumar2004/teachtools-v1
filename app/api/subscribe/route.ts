@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/db";
-import { subscribers } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { v4 as uuidv4 } from "uuid";
+import { addSubscriber } from "@/lib/server/subscribe";
+
+// Mark this route as dynamic to avoid static generation issues
+export const dynamic = 'force-dynamic';
 
 // Add CORS headers to allow requests from any origin
-export const corsHeaders = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
@@ -24,51 +24,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    // Get a fresh database connection
-    const db = getDb();
+    // Add the subscriber using our file-based system
+    const subscriber = await addSubscriber(email, source, userGroup);
     
-    // Check if email already exists
-    const existingSubscriber = await db
-      .select()
-      .from(subscribers)
-      .where(eq(subscribers.email, email));
-
-    if (existingSubscriber.length > 0) {
-      // Email already exists, return success but don't create duplicate
+    // Check if this was a new subscription or existing one
+    const isNewSubscription = new Date(subscriber.createdAt).getTime() === new Date(subscriber.updatedAt).getTime();
+    
+    if (!isNewSubscription) {
+      // Email already exists
       return NextResponse.json(
-        { success: true, id: existingSubscriber[0].id, message: "Already subscribed" },
-        { status: 200 }
+        { success: true, id: subscriber.id, message: "Already subscribed" },
+        { status: 200, headers: corsHeaders }
       );
     }
 
-    // Generate a verification token
-    const verificationToken = uuidv4();
-
-    // Insert the new subscriber
-    const result = await db.insert(subscribers).values({
-      email,
-      source,
-      userGroup,
-      verificationToken,
-      isVerified: false, // Requires verification via email
-    }).returning({ id: subscribers.id });
-
     // In a production app, you would send a verification email here
-    console.log(`New subscriber added: ${email} with verification token: ${verificationToken}`);
+    console.log(`New subscriber added: ${email} with verification token: ${subscriber.verificationToken}`);
 
     return NextResponse.json(
       { 
         success: true, 
-        id: result[0].id,
+        id: subscriber.id,
         message: "Subscription successful! Please check your email to verify your subscription."
       }, 
-      { status: 201 }
+      { status: 201, headers: corsHeaders }
     );
   } catch (error) {
     console.error("Error in subscribe API:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500 },
+      { status: 500, headers: corsHeaders },
     );
   }
 }

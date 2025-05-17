@@ -408,7 +408,7 @@ export async function bulkUploadBookmarks(
                 revalidatePath("/admin");
                 revalidatePath("/[slug]");
               })
-              .catch((err) => {
+              .catch((err: unknown) => {
                 errorCount++;
                 const errorMessage = err instanceof Error ? err.message : String(err);
                 errors.push(`${url}: Failed to create basic bookmark: ${errorMessage}`);

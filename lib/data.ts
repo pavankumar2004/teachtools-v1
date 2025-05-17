@@ -11,7 +11,7 @@ export async function getAllBookmarks(): Promise<(Bookmark & { category: Categor
     .from(bookmarks)
     .leftJoin(categories, eq(bookmarks.categoryId, categories.id));
   
-  return results.map(row => ({
+  return results.map((row: any) => ({
     ...row.bookmarks,
     category: row.categories,
   }));

@@ -3,7 +3,7 @@ import React from "react";
 import { Suspense } from "react";
 
 // Database Imports
-import { getAllBookmarks, getAllCategories } from "@/lib/data";
+import { getAllBookmarks, getAllCategories, Bookmark, Category } from "@/lib/data";
 
 // Component Imports
 import { Main, Section, Container } from "@/components/craft";
@@ -14,15 +14,29 @@ import { EmailForm } from "@/components/email-form";
 
 import Balancer from "react-wrap-balancer";
 
+// Mark this page as dynamic to ensure it's rendered at request time in production
+export const dynamic = 'force-dynamic';
+
 export default async function Home({
   searchParams,
 }: {
   searchParams: { category?: string; search?: string };
 }) {
-  const [bookmarks, categories] = await Promise.all([
-    getAllBookmarks(),
-    getAllCategories(),
-  ]);
+  // Wrap database calls in try/catch to handle potential errors during build time
+  let bookmarks: (Bookmark & { category: Category | null })[] = [];
+  let categories: Category[] = [];
+  
+  try {
+    [bookmarks, categories] = await Promise.all([
+      getAllBookmarks(),
+      getAllCategories(),
+    ]);
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    // Provide fallback data for build time
+    bookmarks = [];
+    categories = [];
+  }
 
   const filteredBookmarks = bookmarks
     .filter(
