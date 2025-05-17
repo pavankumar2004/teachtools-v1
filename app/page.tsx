@@ -25,26 +25,50 @@ export default async function Home({
   // Wrap database calls in try/catch to handle potential errors during build time
   let bookmarks: (Bookmark & { category: Category | null })[] = [];
   let categories: Category[] = [];
+  let error = null;
   
   try {
+    // Fetch data with proper error handling
+    const bookmarksPromise = getAllBookmarks().catch(err => {
+      console.error('Error fetching bookmarks:', err);
+      return [];
+    });
+    
+    const categoriesPromise = getAllCategories().catch(err => {
+      console.error('Error fetching categories:', err);
+      return [];
+    });
+    
     [bookmarks, categories] = await Promise.all([
-      getAllBookmarks(),
-      getAllCategories(),
+      bookmarksPromise,
+      categoriesPromise,
     ]);
-  } catch (error) {
-    console.error('Error fetching data:', error);
-    // Provide fallback data for build time
+    
+    // Ensure bookmarks and categories are arrays
+    if (!Array.isArray(bookmarks)) {
+      console.error('Bookmarks is not an array:', bookmarks);
+      bookmarks = [];
+    }
+    
+    if (!Array.isArray(categories)) {
+      console.error('Categories is not an array:', categories);
+      categories = [];
+    }
+  } catch (err) {
+    console.error('Error fetching data:', err);
+    error = err;
+    // Provide fallback data
     bookmarks = [];
     categories = [];
   }
 
-  const filteredBookmarks = bookmarks
+  const filteredBookmarks = Array.isArray(bookmarks) ? bookmarks
     .filter(
-      (bookmark) =>
+      (bookmark: Bookmark & { category: Category | null }) =>
         !searchParams.category ||
         bookmark.category?.id.toString() === searchParams.category,
     )
-    .filter((bookmark) => {
+    .filter((bookmark: Bookmark & { category: Category | null }) => {
       if (!searchParams.search) return true;
       const searchTerm = searchParams.search.toLowerCase();
       return (
@@ -54,7 +78,7 @@ export default async function Home({
         bookmark.notes?.toLowerCase().includes(searchTerm) ||
         bookmark.overview?.toLowerCase().includes(searchTerm)
       );
-    });
+    }) : [];
 
   return (
     <Main>
@@ -93,7 +117,7 @@ export default async function Home({
             </Suspense>
 
             <BookmarkGrid>
-              {filteredBookmarks.map((bookmark) => (
+              {filteredBookmarks && filteredBookmarks.map((bookmark: Bookmark & { category: Category | null }) => (
                 <BookmarkCard
                   key={bookmark.id}
                   bookmark={{

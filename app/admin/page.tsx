@@ -18,11 +18,36 @@ export default async function AdminPage() {
   let bookmarks: (BookmarkType & { category: Category | null })[] = [];
   
   try {
-    categories = await getAllCategories();
-    bookmarks = await getAllBookmarks();
+    // Fetch data with proper error handling
+    const categoriesPromise = getAllCategories().catch(err => {
+      console.error('Error fetching categories:', err);
+      return [];
+    });
+    
+    const bookmarksPromise = getAllBookmarks().catch(err => {
+      console.error('Error fetching bookmarks:', err);
+      return [];
+    });
+    
+    // Wait for both promises to resolve
+    categories = await categoriesPromise;
+    bookmarks = await bookmarksPromise;
+    
+    // Ensure data is in array format
+    if (!Array.isArray(categories)) {
+      console.error('Categories is not an array:', categories);
+      categories = [];
+    }
+    
+    if (!Array.isArray(bookmarks)) {
+      console.error('Bookmarks is not an array:', bookmarks);
+      bookmarks = [];
+    }
   } catch (error) {
     console.error('Error fetching data for admin page:', error);
     // Fallback data for build time
+    categories = [];
+    bookmarks = [];
   }
 
   return (
