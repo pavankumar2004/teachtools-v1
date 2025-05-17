@@ -1,16 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { load } from "cheerio";
 
 // This is a server-side only API route
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     // Set CORS headers to allow requests from any origin
     const headers = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Headers': 'Content-Type',
       'Content-Type': 'application/json'
     };
 
@@ -19,9 +19,8 @@ export async function GET(request: Request) {
       return new NextResponse(null, { status: 204, headers });
     }
 
-    // Always allow access to metadata API
-    const requestUrl = new URL(request.url);
-    const url = requestUrl.searchParams.get("url");
+    // Extract URL from request
+    const url = request.nextUrl.searchParams.get("url");
 
     if (!url) {
       return NextResponse.json({ error: "URL is required" }, { status: 400, headers });
