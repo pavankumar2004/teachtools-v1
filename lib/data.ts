@@ -7,12 +7,11 @@ export type Category = typeof categories.$inferSelect;
 
 export async function getAllBookmarks(): Promise<(Bookmark & { category: Category | null })[]> {
   try {
-    // Make sure to execute the query by adding .execute() at the end
+    // Execute the query without .execute() to be compatible with all Drizzle versions
     const results = await db
       .select()
       .from(bookmarks)
-      .leftJoin(categories, eq(bookmarks.categoryId, categories.id))
-      .execute();
+      .leftJoin(categories, eq(bookmarks.categoryId, categories.id));
     
     console.log('Bookmarks query results structure:', {
       isArray: Array.isArray(results),
@@ -39,8 +38,8 @@ export async function getAllBookmarks(): Promise<(Bookmark & { category: Categor
 
 export async function getAllCategories(): Promise<Category[]> {
   try {
-    // Make sure to execute the query by adding .execute() at the end
-    const results = await db.select().from(categories).execute();
+    // Execute the query without .execute() to be compatible with all Drizzle versions
+    const results = await db.select().from(categories);
     console.log('Categories query results:', results);
     
     // Ensure we always return an array
@@ -64,8 +63,7 @@ export async function getBookmarkById(id: number): Promise<(Bookmark & { categor
       .from(bookmarks)
       .leftJoin(categories, eq(bookmarks.categoryId, categories.id))
       .where(eq(bookmarks.id, id))
-      .limit(1)
-      .execute();
+      .limit(1);
     
     if (!Array.isArray(results) || results.length === 0) {
       return null;
@@ -88,8 +86,7 @@ export async function getBookmarkBySlug(slug: string): Promise<(Bookmark & { cat
       .from(bookmarks)
       .leftJoin(categories, eq(bookmarks.categoryId, categories.id))
       .where(eq(bookmarks.slug, slug))
-      .limit(1)
-      .execute();
+      .limit(1);
     
     if (!Array.isArray(results) || results.length === 0) {
       return null;
