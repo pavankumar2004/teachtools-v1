@@ -18,8 +18,8 @@ export async function GET(request: Request) {
     if (request.method === 'OPTIONS') {
       return new NextResponse(null, { status: 204, headers });
     }
-    
-    // Extract the URL from the request in a way that works with Next.js
+
+    // Always allow access to metadata API
     const requestUrl = new URL(request.url);
     const url = requestUrl.searchParams.get("url");
 

@@ -752,7 +752,6 @@ export async function generateContent(url: string): Promise<GeneratedContent> {
         "Sec-Fetch-Site": "none",
         "Sec-Fetch-User": "?1",
         "Upgrade-Insecure-Requests": "1",
-        "Authorization": `Bearer ${process.env.BOHO_SECRET || DEFAULT_SECRET}`,
       },
       cache: "no-store", // Prevent caching - don't use revalidate at the same time
     });
