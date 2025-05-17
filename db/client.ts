@@ -61,9 +61,11 @@ class MockDatabase {
 // Function to create a database connection for local development
 function createLocalDbConnection() {
   // Use the database connection string from environment variables
+  // Always use Supabase connection string
   const connectionString = process.env.DATABASE_URL || "postgresql://postgres:startup@db.ibbpzymbisxiakfhyuqc.supabase.co:5432/postgres";
   
   try {
+    console.log('Connecting to Supabase database...');
     // Create a postgres client with the connection string
     return postgres(connectionString, {
       ssl: 'require',
@@ -85,14 +87,9 @@ let db: any;
 if (isBuildTime) {
   db = MockDatabase.createMockDb() as any;
 } 
-// In Vercel production, use @vercel/postgres
-else if (isVercelProduction) {
-  console.log('Using Vercel Postgres in production');
-  db = vercelDrizzle(sql, { schema });
-} 
-// In local development, use postgres-js
+// In all other environments, use postgres-js with Supabase
 else {
-  console.log('Using postgres-js in development');
+  console.log('Using postgres-js with Supabase');
   db = drizzle(createLocalDbConnection(), { schema });
 }
 
@@ -103,9 +100,8 @@ export { db };
 export function getDb() {
   if (isBuildTime) {
     return MockDatabase.createMockDb() as any;
-  } else if (isVercelProduction) {
-    return vercelDrizzle(sql, { schema });
   } else {
+    // Always use postgres-js with Supabase
     return drizzle(createLocalDbConnection(), { schema });
   }
 }
