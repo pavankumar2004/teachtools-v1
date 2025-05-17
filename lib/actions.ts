@@ -8,6 +8,13 @@ import { revalidatePath } from "next/cache";
 import Exa from "exa-js";
 import { DEFAULT_SECRET } from "@/lib/boho";
 
+// Base URL for API requests
+const baseUrl = process.env.VERCEL_URL
+  ? `https://${process.env.VERCEL_URL}`
+  : process.env.NODE_ENV === "development"
+    ? "http://localhost:3000"
+    : "";
+
 export type ActionState = {
   success?: boolean;
   error?: string;
@@ -733,8 +740,7 @@ export async function generateContent(url: string): Promise<GeneratedContent> {
         ? "http://localhost:3000"
         : "";
     
-    // For server-side requests, we don't need to construct a full URL
-    const metadataUrl = `/api/metadata?url=${encodeURIComponent(url)}`;
+    const metadataUrl = `${baseUrl}/api/metadata?url=${encodeURIComponent(url)}`;
 
     console.log(`[generateContent] Fetching metadata from: ${metadataUrl}`);
 
