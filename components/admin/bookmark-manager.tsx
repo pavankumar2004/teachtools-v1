@@ -404,6 +404,7 @@ export function BookmarkManager({
       }
 
       toast.info(`Processing ${urls.length} URLs. This may take a while...`);
+      toast.info("All URLs must be processed successfully for any to be saved.");
       
       // Prepare the data for the server action
       const urlsString = urls.join("\n");
@@ -427,13 +428,24 @@ export function BookmarkManager({
       } else {
         console.log("Bulk upload failed:", result.error);
         toast.error(result.error || "Failed to upload bookmarks");
+        
+        // If there are specific errors, show them in a more detailed toast
+        if (result.data?.errors && Array.isArray(result.data.errors)) {
+          const errorCount = result.data.errors.length;
+          if (errorCount > 0) {
+            toast.error(
+              `${errorCount} URL(s) failed to process. No bookmarks were saved.`,
+              { duration: 5000 }
+            );
+          }
+        }
       }
       
       setIsUploading(false);
       console.log("Bulk upload process complete");
     } catch (error) {
       console.error("Bulk upload error:", error);
-      toast.error("Failed to process URLs");
+      toast.error("Failed to process URLs. No bookmarks were saved.");
       setIsUploading(false);
     }
   };

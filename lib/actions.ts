@@ -362,7 +362,7 @@ export async function bulkUploadBookmarks(
       : null;
 
     console.log(`Processing URLs string of length: ${urls.length} characters`);
-    console.log(`Using category ID: ${categoryId || 'none (null)'}`);
+    console.log(`Using category ID: ${categoryId || 'none (null)'}`);    
     
     const urlList = urls.split("\n").filter((url) => url.trim());
     console.log(`Found ${urlList.length} URLs to process after filtering:`);
@@ -370,58 +370,19 @@ export async function bulkUploadBookmarks(
       console.log(`  [${index + 1}] ${url}`);
     });
     
-    let successCount = 0;
-    let errorCount = 0;
-    let lastAddedTitle = "";
-    let errors: string[] = [];
+    // Create arrays to collect all bookmarks before inserting them
+    // This implements the all-or-nothing approach
+    const bookmarksToInsert: BookmarkData[] = [];
+    const errors: string[] = [];
 
     // Process URLs with a timeout to avoid hanging on problematic URLs
     const processUrlWithTimeout = async (url: string, timeout: number = 30000) => {
-      return new Promise<void>(async (resolve) => {
+      return new Promise<BookmarkData | null>(async (resolve) => {
         // Set a timeout to ensure we don't hang on any URL
         const timeoutId = setTimeout(() => {
           console.log(`[URL] Timed out after ${timeout/1000}s: ${url}`);
-          
-          // Create a basic bookmark even when timing out
-          try {
-            const basicBookmark: BookmarkData = {
-              title: url.replace(/https?:\/\/(www\.)?/, ""), // Basic title from URL
-              description: "Added via bulk upload (timed out during processing)",
-              url: url,
-              overview: "",
-              search_results: "",
-              favicon: "",
-              ogImage: "",
-              slug: generateSlug(url.replace(/https?:\/\/(www\.)?/, "")),
-              categoryId: categoryId,
-              isFavorite: false,
-              isArchived: false,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            };
-            
-            db.insert(bookmarks).values(basicBookmark)
-              .then(() => {
-                successCount++;
-                lastAddedTitle = basicBookmark.title;
-                console.log(`[URL] Created basic bookmark after timeout: ${basicBookmark.title}`);
-                revalidatePath("/admin");
-                revalidatePath("/[slug]");
-              })
-              .catch((err: unknown) => {
-                errorCount++;
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                errors.push(`${url}: Failed to create basic bookmark: ${errorMessage}`);
-                console.log(`[URL] Failed to create basic bookmark after timeout: ${errorMessage}`);
-              });
-          } catch (error) {
-            errorCount++;
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            errors.push(`${url}: ${errorMessage}`);
-            console.log(`[URL] Error creating basic bookmark: ${errorMessage}`);
-          }
-          
-          resolve();
+          errors.push(`${url}: Processing timed out after ${timeout/1000} seconds`);
+          resolve(null); // Return null to indicate failure
         }, timeout);
         
         try {
@@ -440,44 +401,12 @@ export async function bulkUploadBookmarks(
           
           if (content.error) {
             console.log(`[URL] Error from generateContent: ${content.error}`);
-            
-            // Try to create a basic bookmark even if content generation failed
-            if (content.title) {
-              // We have some basic metadata, so create a bookmark with what we have
-              const basicBookmark: BookmarkData = {
-                title: content.title || normalizedUrl,
-                description: content.description || "Added via bulk upload (partial content)",
-                url: content.url || normalizedUrl,
-                overview: "",
-                search_results: "",
-                favicon: content.favicon || "",
-                ogImage: content.ogImage || "",
-                slug: content.slug || generateSlug(normalizedUrl.replace(/https?:\/\/(www\.)?/, "")),
-                categoryId: categoryId,
-                isFavorite: false,
-                isArchived: false,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              };
-              
-              await db.insert(bookmarks).values(basicBookmark);
-              successCount++;
-              lastAddedTitle = basicBookmark.title;
-              console.log(`[URL] Created basic bookmark with partial data: ${basicBookmark.title}`);
-              revalidatePath("/admin");
-              revalidatePath("/[slug]");
-              resolve();
-              return;
-            }
-            
-            // No usable data, record as error
-            errorCount++;
             errors.push(`${url}: ${content.error}`);
-            resolve();
+            resolve(null); // Return null to indicate failure
             return;
           }
 
-          // If we have at least a title, consider it successful even with partial content
+          // If we have at least a title, consider it successful
           if (content.title) {
             // Create bookmark data
             const bookmarkData: BookmarkData = {
@@ -496,58 +425,24 @@ export async function bulkUploadBookmarks(
               updatedAt: new Date(),
             };
 
-            await db.insert(bookmarks).values(bookmarkData);
-            successCount++;
-            lastAddedTitle = content.title;
-            
-            console.log(`[URL] Successfully added: "${content.title}"`);
-            revalidatePath("/admin");
-            revalidatePath("/[slug]");
+            console.log(`[URL] Successfully processed: "${content.title}"`);
+            resolve(bookmarkData); // Return the bookmark data
           } else {
             // If we don't have a title, consider it an error
-            errorCount++;
             errors.push(`${url}: Failed to extract content (no title found)`);
             console.log(`[URL] Failed to extract content (no title found): ${url}`);
+            resolve(null); // Return null to indicate failure
           }
         } catch (error) {
           // Clear the timeout since we completed with an error
           clearTimeout(timeoutId);
           
-          // Try to create a basic bookmark even if there was an error
-          try {
-            const basicTitle = url.replace(/https?:\/\/(www\.)?/, "");
-            const basicBookmark: BookmarkData = {
-              title: basicTitle,
-              description: "Added via bulk upload (error during processing)",
-              url: url,
-              overview: "",
-              search_results: "",
-              favicon: "",
-              ogImage: "",
-              slug: generateSlug(basicTitle),
-              categoryId: categoryId,
-              isFavorite: false,
-              isArchived: false,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            };
-            
-            await db.insert(bookmarks).values(basicBookmark);
-            successCount++;
-            lastAddedTitle = basicBookmark.title;
-            console.log(`[URL] Created fallback bookmark after error: ${basicBookmark.title}`);
-            revalidatePath("/admin");
-            revalidatePath("/[slug]");
-          } catch (secondError) {
-            errorCount++;
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            errors.push(`${url}: ${errorMessage}`);
-            console.log(`[URL] ERROR: ${errorMessage}`);
-            console.error(`[URL] Full error:`, error);
-          }
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          errors.push(`${url}: ${errorMessage}`);
+          console.log(`[URL] ERROR: ${errorMessage}`);
+          console.error(`[URL] Full error:`, error);
+          resolve(null); // Return null to indicate failure
         }
-        
-        resolve();
       });
     };
 
@@ -560,7 +455,12 @@ export async function bulkUploadBookmarks(
       }
 
       console.log(`\n[URL ${i+1}/${urlList.length}] Starting to process: ${url}`);
-      await processUrlWithTimeout(url);
+      const bookmarkData = await processUrlWithTimeout(url);
+      
+      // If we got valid bookmark data, add it to our collection
+      if (bookmarkData) {
+        bookmarksToInsert.push(bookmarkData);
+      }
       
       // Add a small delay between processing URLs to avoid rate limits
       if (i < urlList.length - 1) {
@@ -569,25 +469,65 @@ export async function bulkUploadBookmarks(
       }
     }
 
-    const resultMessage = `Successfully imported ${successCount} bookmarks. ${errorCount > 0 ? `Failed to import ${errorCount} URLs.` : ""}`;
-    console.log(`\n===== BULK UPLOAD COMPLETED =====`);
-    console.log(`Success: ${successCount}, Errors: ${errorCount}`);
-    console.log(`Result message: ${resultMessage}`);
+    // Check if we have any errors - if so, don't save anything
     if (errors.length > 0) {
-      console.log(`Errors encountered:`);
+      console.log(`\n===== BULK UPLOAD FAILED =====`);
+      console.log(`Encountered ${errors.length} errors during processing:`);
       errors.forEach((err, idx) => console.log(`  [${idx + 1}] ${err}`));
+      
+      return {
+        success: false,
+        error: `Failed to process all URLs. Found ${errors.length} errors.`,
+        data: { errors }
+      };
     }
     
-    return {
-      success: true,
-      message: resultMessage,
-      progress: {
-        current: urlList.length,
-        total: urlList.length,
-        lastAdded: lastAddedTitle,
-      },
-      data: errors.length > 0 ? { errors } : undefined
-    };
+    // If we have no bookmarks to insert, that's an error
+    if (bookmarksToInsert.length === 0) {
+      console.log(`\n===== BULK UPLOAD FAILED =====`);
+      console.log(`No valid bookmarks found to insert`);
+      
+      return {
+        success: false,
+        error: "No valid bookmarks found to insert",
+      };
+    }
+    
+    // Now insert all bookmarks in a single transaction if possible
+    console.log(`\n===== INSERTING ${bookmarksToInsert.length} BOOKMARKS =====`);
+    try {
+      // Insert all bookmarks
+      await db.insert(bookmarks).values(bookmarksToInsert);
+      
+      // Revalidate paths after successful insertion
+      revalidatePath("/admin");
+      revalidatePath("/[slug]");
+      
+      const resultMessage = `Successfully imported ${bookmarksToInsert.length} bookmarks.`;
+      console.log(`\n===== BULK UPLOAD COMPLETED =====`);
+      console.log(`Success: ${bookmarksToInsert.length} bookmarks inserted`);
+      console.log(`Result message: ${resultMessage}`);
+      
+      return {
+        success: true,
+        message: resultMessage,
+        progress: {
+          current: bookmarksToInsert.length,
+          total: bookmarksToInsert.length,
+          lastAdded: bookmarksToInsert.length > 0 ? bookmarksToInsert[bookmarksToInsert.length - 1].title : "",
+        }
+      };
+    } catch (dbError) {
+      const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
+      console.log(`\n===== DATABASE INSERTION FAILED =====`);
+      console.log(`Error message: ${errorMessage}`);
+      console.error(`Error details:`, dbError);
+      
+      return {
+        success: false,
+        error: `Failed to save bookmarks to database: ${errorMessage}`,
+      };
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.log(`===== BULK UPLOAD FAILED =====`);
