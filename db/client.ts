@@ -6,9 +6,7 @@ import * as schema from "./schema";
 import "dotenv/config";
 
 // Determine if we're in a build/static context
-const isBuildTime = process.env.NODE_ENV === 'production' || 
-                   process.env.NEXT_PHASE === 'phase-production-build' || 
-                   process.env.VERCEL_ENV === 'production';
+const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build';
 
 // Determine if we're in Vercel production environment
 const isVercelProduction = process.env.VERCEL_ENV === 'production';
@@ -61,7 +59,6 @@ class MockDatabase {
 // Function to create a database connection for local development
 function createLocalDbConnection() {
   // Use the database connection string from environment variables
-  // Always use Supabase connection string
   const connectionString = process.env.DATABASE_URL || "postgresql://postgres:startup@db.ibbpzymbisxiakfhyuqc.supabase.co:5432/postgres";
   
   try {
@@ -85,7 +82,13 @@ let db: any;
 
 // During build time, use the mock implementation
 if (isBuildTime) {
+  console.log('Using mock database for build time');
   db = MockDatabase.createMockDb() as any;
+}
+// In Vercel production, use the Vercel Postgres client
+else if (isVercelProduction && process.env.POSTGRES_URL) {
+  console.log('Using Vercel Postgres client in production');
+  db = vercelDrizzle(sql, { schema });
 } 
 // In all other environments, use postgres-js with Supabase
 else {
@@ -100,8 +103,13 @@ export { db };
 export function getDb() {
   if (isBuildTime) {
     return MockDatabase.createMockDb() as any;
-  } else {
-    // Always use postgres-js with Supabase
+  } 
+  // In Vercel production, use the Vercel Postgres client
+  else if (isVercelProduction && process.env.POSTGRES_URL) {
+    return vercelDrizzle(sql, { schema });
+  } 
+  // In all other environments, use postgres-js with Supabase
+  else {
     return drizzle(createLocalDbConnection(), { schema });
   }
 }
