@@ -733,27 +733,21 @@ export async function generateContent(url: string): Promise<GeneratedContent> {
         ? "http://localhost:3000"
         : "";
     
-    const metadataUrl = `${baseUrl}/api/metadata?url=${encodeURIComponent(url)}`;
+    // For server-side requests, we don't need to construct a full URL
+    const metadataUrl = `/api/metadata?url=${encodeURIComponent(url)}`;
 
     console.log(`[generateContent] Fetching metadata from: ${metadataUrl}`);
 
     // First, fetch metadata from our API
+    // Use server-side fetch without any auth headers
     const metadataResponse = await fetch(metadataUrl, {
       method: "GET",
       headers: {
         "Accept": "application/json",
         "Content-Type": "application/json",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
-        "Upgrade-Insecure-Requests": "1",
       },
-      cache: "no-store", // Prevent caching - don't use revalidate at the same time
+      cache: "no-store",
     });
 
     if (!metadataResponse.ok) {
