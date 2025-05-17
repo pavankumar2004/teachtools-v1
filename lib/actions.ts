@@ -6,6 +6,7 @@ import { generateSlug } from "@/lib/utils";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import Exa from "exa-js";
+import { DEFAULT_SECRET } from "@/lib/boho";
 
 export type ActionState = {
   success?: boolean;
@@ -742,7 +743,16 @@ export async function generateContent(url: string): Promise<GeneratedContent> {
       headers: {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0", // sometimes required by some APIs
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+        "Authorization": `Bearer ${process.env.BOHO_SECRET || DEFAULT_SECRET}`,
       },
       cache: "no-store", // Prevent caching - don't use revalidate at the same time
     });
