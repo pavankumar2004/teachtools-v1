@@ -15,9 +15,7 @@ export const boho = bohoAuth({
       "/admin",
       "/admin/basic",
       "/admin/manage",
-      "/api/bookmarks",
-      // Removed /api/generate from protected paths to allow public access
-      // Removed /api/metadata from protected paths to allow public access
+      "/api/bookmarks"
     ],
     redirectPath: "/admin",
   },
