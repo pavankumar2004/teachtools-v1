@@ -52,46 +52,84 @@ const mockBookmarks: any[] = [
   }
 ];
 
-// Helper function to safely execute queries and handle both query builder objects and results
-async function safelyExecuteQuery<T>(queryFn: () => Promise<any>, errorMsg: string, mockData: any[] = []): Promise<T[]> {
+// Helper function to safely execute database queries
+async function safelyExecuteQuery<T>(
+  queryFn: () => Promise<any> | any,
+  errorMsg: string,
+  mockData: T[] = []
+): Promise<T[]> {
   try {
-    // Execute the query
-    const result = await queryFn();
+    // Execute the query function
+    let results = await queryFn();
     
-    // Log the result structure for debugging
-    console.log(`Query result type: ${typeof result}`);
+    // Log the result type for debugging
+    console.log('Query result type:', typeof results);
     
-    // Handle different result types
-    if (Array.isArray(result)) {
-      // Direct array result - common in newer Drizzle versions
-      return result as T[];
-    } else if (result && typeof result === 'object') {
-      // For older Drizzle versions that return query builder objects
-      // Check if it has common query builder methods
-      if (typeof result.execute === 'function') {
-        try {
-          // If it has execute method, try using it
-          const executedResult = await result.execute();
-          return Array.isArray(executedResult) ? executedResult : mockData as T[];
-        } catch (executeError) {
-          console.error('Error executing query with .execute():', executeError);
-          return mockData as T[];
-        }
-      } else {
-        // It's a query builder object but doesn't have execute method
-        // This is likely in production with an older Drizzle version
-        console.error(`Query did not return an array:`, result);
-        console.log('Using mock data as fallback');
-        return mockData as T[];
-      }
+    // Check if the result is already an array
+    if (Array.isArray(results)) {
+      return results as T[];
     }
     
-    // Fallback for unexpected result types
-    console.error(`Unexpected query result type: ${typeof result}`);
-    return mockData as T[];
+    // If the result is an object with an execute method (query builder), try to execute it
+    if (results && typeof results === 'object') {
+      console.log('Query did not return an array:', results);
+      
+      // Handle query builder objects
+      if (typeof results.execute === 'function') {
+        try {
+          const executedResults = await results.execute();
+          if (Array.isArray(executedResults)) {
+            return executedResults as T[];
+          }
+        } catch (executeError) {
+          console.error(`Error executing query with .execute(): ${errorMsg}`, executeError);
+        }
+      }
+      
+      // Try to execute the query by calling any functions that might complete the query
+      // This handles the case where the query builder object has where, orderBy, etc. functions
+      try {
+        // If the object has a where function, it might be a query builder
+        if (typeof results.where === 'function') {
+          // Try to complete and execute the query
+          results = await results.where(() => true);
+          
+          // Check if we now have an array
+          if (Array.isArray(results)) {
+            return results as T[];
+          }
+          
+          // If it's still an object with execute, try that
+          if (results && typeof results.execute === 'function') {
+            const executedResults = await results.execute();
+            if (Array.isArray(executedResults)) {
+              return executedResults as T[];
+            }
+          }
+        }
+        
+        // If the object has a toSQL function, it might be a knex query builder
+        if (typeof results.toSQL === 'function') {
+          const executedResults = await results;
+          if (Array.isArray(executedResults)) {
+            return executedResults as T[];
+          }
+        }
+      } catch (queryBuilderError) {
+        console.error(`Error trying to complete query: ${errorMsg}`, queryBuilderError);
+      }
+      
+      // If we got here, use mock data as fallback
+      console.log('Using mock data as fallback');
+      return mockData;
+    }
+    
+    // If we got here, something went wrong, return mock data
+    console.log('Unexpected result type, using mock data as fallback');
+    return mockData;
   } catch (error) {
-    console.error(errorMsg, error);
-    return mockData as T[];
+    console.error(`${errorMsg}`, error);
+    return mockData;
   }
 }
 
