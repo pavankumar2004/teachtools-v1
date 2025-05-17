@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postbuild": "npm run db:vercel-migrate",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "drizzle-kit generate",
@@ -17,8 +16,7 @@
     "db:run-migration": "node scripts/db-migrate.js",
     "db:local-setup": "node scripts/local-db-setup.js",
     "db:supabase-setup": "node scripts/supabase-setup.js",
-    "db:add-subscribers": "tsx db/migrations/add-subscribers-table.ts",
-    "db:vercel-migrate": "tsx db/migrate.ts"
+    "db:add-subscribers": "tsx db/migrations/add-subscribers-table.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
