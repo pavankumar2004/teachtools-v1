@@ -48,6 +48,48 @@ type GeneratedContent = {
   error?: string;
 };
 
+// Helper function to safely execute database write operations
+async function safelyExecuteWrite(writeFn: () => Promise<any>, errorMsg: string): Promise<boolean> {
+  try {
+    const result = await writeFn();
+    
+    // Log the result for debugging
+    console.log(`Write operation result type: ${typeof result}`);
+    
+    // Handle different result types
+    if (result && typeof result === 'object') {
+      // For some Drizzle versions, we might need to execute the query
+      if (typeof result.execute === 'function') {
+        try {
+          await result.execute();
+          return true;
+        } catch (executeError) {
+          console.error('Error executing write operation with .execute():', executeError);
+          return false;
+        }
+      } else if (typeof result.run === 'function') {
+        // Some versions use .run() instead
+        try {
+          await result.run();
+          return true;
+        } catch (runError) {
+          console.error('Error executing write operation with .run():', runError);
+          return false;
+        }
+      } else {
+        // Assume success if we got here and didn't throw an error
+        return true;
+      }
+    }
+    
+    // If we got here, assume success
+    return true;
+  } catch (error) {
+    console.error(errorMsg, error);
+    return false;
+  }
+}
+
 // Category Actions
 export async function createCategory(
   prevState: ActionState | null,
@@ -67,18 +109,26 @@ export async function createCategory(
     const icon = formData.icon;
     const id = slug; // Using slug as the ID since it's unique
 
-    await db.insert(categories).values({
-      id,
-      name,
-      description,
-      slug,
-      color,
-      icon,
-    });
+    // Use the safe execution function for the database write
+    const success = await safelyExecuteWrite(
+      () => db.insert(categories).values({
+        id,
+        name,
+        description,
+        slug,
+        color,
+        icon,
+      }),
+      "Error creating category:"
+    );
 
-    revalidatePath("/admin");
-    revalidatePath("/");
-    return { success: true };
+    if (success) {
+      revalidatePath("/admin");
+      revalidatePath("/");
+      return { success: true };
+    } else {
+      return { error: "Failed to create category due to database error" };
+    }
   } catch (err) {
     console.error("Error creating category:", err);
     return { error: "Failed to create category" };
@@ -112,21 +162,28 @@ export async function updateCategory(
     const color = formData.color;
     const icon = formData.icon;
 
-    await db
-      .update(categories)
-      .set({
-        name,
-        description,
-        slug,
-        color,
-        icon,
-      })
-      .where(eq(categories.id, id));
+    // Use the safe execution function for the database update
+    const success = await safelyExecuteWrite(
+      () => db
+        .update(categories)
+        .set({
+          name,
+          description,
+          slug,
+          color,
+          icon,
+        })
+        .where(eq(categories.id, id)),
+      "Error updating category:"
+    );
 
-    revalidatePath("/admin");
-    revalidatePath("/");
-
-    return { success: true };
+    if (success) {
+      revalidatePath("/admin");
+      revalidatePath("/");
+      return { success: true };
+    } else {
+      return { error: "Failed to update category due to database error" };
+    }
   } catch (err) {
     console.error("Error updating category:", err);
     return { error: "Failed to update category" };
@@ -149,12 +206,19 @@ export async function deleteCategory(
       return { error: "No category ID provided" };
     }
 
-    await db.delete(categories).where(eq(categories.id, id));
+    // Use the safe execution function for the database delete
+    const success = await safelyExecuteWrite(
+      () => db.delete(categories).where(eq(categories.id, id)),
+      "Error deleting category:"
+    );
 
-    revalidatePath("/admin");
-    revalidatePath("/");
-
-    return { success: true };
+    if (success) {
+      revalidatePath("/admin");
+      revalidatePath("/");
+      return { success: true };
+    } else {
+      return { error: "Failed to delete category due to database error" };
+    }
   } catch (err) {
     console.error("Error deleting category:", err);
     return { error: "Failed to delete category" };
@@ -196,24 +260,31 @@ export async function createBookmark(
       slug = generateSlug(title);
     }
 
-    await db.insert(bookmarks).values({
-      title,
-      slug,
-      url,
-      description,
-      categoryId: categoryId === "none" ? null : categoryId,
-      search_results: search_results || null,
-      isFavorite,
-      isArchived,
-      overview,
-      favicon,
-      ogImage,
-    });
+    // Use the safe execution function for the database insert
+    const success = await safelyExecuteWrite(
+      () => db.insert(bookmarks).values({
+        title,
+        slug,
+        url,
+        description,
+        categoryId: categoryId === "none" ? null : categoryId,
+        search_results: search_results || null,
+        isFavorite,
+        isArchived,
+        overview,
+        favicon,
+        ogImage,
+      }),
+      "Error creating bookmark:"
+    );
 
-    revalidatePath("/admin");
-    revalidatePath("/");
-
-    return { success: true };
+    if (success) {
+      revalidatePath("/admin");
+      revalidatePath("/");
+      return { success: true };
+    } else {
+      return { error: "Failed to create bookmark due to database error" };
+    }
   } catch (err) {
     console.error("Error creating bookmark:", err);
     return { error: "Failed to create bookmark" };
@@ -264,27 +335,34 @@ export async function updateBookmark(
       slug = generateSlug(title);
     }
 
-    await db
-      .update(bookmarks)
-      .set({
-        title,
-        slug,
-        url,
-        description,
-        categoryId: categoryId === "none" ? null : categoryId,
-        search_results: search_results || null,
-        overview,
-        favicon,
-        ogImage,
-        isFavorite,
-        isArchived,
-      })
-      .where(eq(bookmarks.id, Number(id)));
+    // Use the safe execution function for the database update
+    const success = await safelyExecuteWrite(
+      () => db
+        .update(bookmarks)
+        .set({
+          title,
+          slug,
+          url,
+          description,
+          categoryId: categoryId === "none" ? null : categoryId,
+          search_results: search_results || null,
+          overview,
+          favicon,
+          ogImage,
+          isFavorite,
+          isArchived,
+        })
+        .where(eq(bookmarks.id, Number(id))),
+      "Error updating bookmark:"
+    );
 
-    revalidatePath("/admin");
-    revalidatePath("/");
-
-    return { success: true };
+    if (success) {
+      revalidatePath("/admin");
+      revalidatePath("/");
+      return { success: true };
+    } else {
+      return { error: "Failed to update bookmark due to database error" };
+    }
   } catch (err) {
     console.error("Error updating bookmark:", err);
     return { error: "Failed to update bookmark" };
@@ -310,13 +388,20 @@ export async function deleteBookmark(
 
     const url = formData.url;
 
-    await db.delete(bookmarks).where(eq(bookmarks.id, Number(id)));
+    // Use the safe execution function for the database delete
+    const success = await safelyExecuteWrite(
+      () => db.delete(bookmarks).where(eq(bookmarks.id, Number(id))),
+      "Error deleting bookmark:"
+    );
 
-    revalidatePath("/admin");
-    revalidatePath("/");
-    revalidatePath(`/${encodeURIComponent(url)}`);
-
-    return { success: true };
+    if (success) {
+      revalidatePath("/admin");
+      revalidatePath("/");
+      revalidatePath(`/${encodeURIComponent(url)}`);
+      return { success: true };
+    } else {
+      return { error: "Failed to delete bookmark due to database error" };
+    }
   } catch (err) {
     console.error("Error deleting bookmark:", err);
     return { error: "Failed to delete bookmark" };
