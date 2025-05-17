@@ -62,23 +62,26 @@ export default async function Home({
     categories = [];
   }
 
-  const filteredBookmarks = Array.isArray(bookmarks) ? bookmarks
-    .filter(
-      (bookmark: Bookmark & { category: Category | null }) =>
-        !searchParams.category ||
-        bookmark.category?.id.toString() === searchParams.category,
-    )
-    .filter((bookmark: Bookmark & { category: Category | null }) => {
-      if (!searchParams.search) return true;
-      const searchTerm = searchParams.search.toLowerCase();
-      return (
-        bookmark.title.toLowerCase().includes(searchTerm) ||
-        bookmark.description?.toLowerCase().includes(searchTerm) ||
-        bookmark.category?.name.toLowerCase().includes(searchTerm) ||
-        bookmark.notes?.toLowerCase().includes(searchTerm) ||
-        bookmark.overview?.toLowerCase().includes(searchTerm)
-      );
-    }) : [];
+  // Filter bookmarks based on category and search parameters
+  const filteredBookmarks = Array.isArray(bookmarks) 
+    ? bookmarks
+      .filter(
+        (bookmark: Bookmark & { category: Category | null }) =>
+          !searchParams.category ||
+          bookmark.category?.id.toString() === searchParams.category,
+      )
+      .filter((bookmark: Bookmark & { category: Category | null }) => {
+        if (!searchParams.search) return true;
+        const searchTerm = searchParams.search.toLowerCase();
+        return (
+          bookmark.title.toLowerCase().includes(searchTerm) ||
+          bookmark.description?.toLowerCase().includes(searchTerm) ||
+          bookmark.category?.name.toLowerCase().includes(searchTerm) ||
+          bookmark.notes?.toLowerCase().includes(searchTerm) ||
+          bookmark.overview?.toLowerCase().includes(searchTerm)
+        );
+      }) 
+    : [];
 
   return (
     <Main>
