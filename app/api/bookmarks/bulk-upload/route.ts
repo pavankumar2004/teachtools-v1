@@ -1,8 +1,31 @@
 import { NextResponse } from "next/server";
 import { db, getDb } from "@/db/client";
 import { bookmarks } from "@/db/schema";
-import { eq } from "drizzle-orm";
 import { parse } from 'csv-parse/sync';
+
+interface CsvRecord {
+  url: string;
+  title: string;
+  description?: string;
+  category_id?: string;
+  overview?: string;
+  is_favorite: string;
+  is_archived: string;
+  slug: string;
+  tags?: string;
+}
+
+interface BookmarkRecord {
+  url: string;
+  title: string;
+  description: string | null;
+  categoryId: string | null;
+  overview: string | null;
+  isFavorite: boolean;
+  isArchived: boolean;
+  slug: string;
+  tags: string[] | null;
+}
 
 export async function POST(request: Request) {
   try {
@@ -24,7 +47,7 @@ export async function POST(request: Request) {
     });
 
     // Validate and process records
-    const processedRecords = records.map(record => ({
+    const processedRecords = records.map((record: CsvRecord): BookmarkRecord => ({
       url: record.url,
       title: record.title,
       description: record.description || null,
@@ -37,7 +60,7 @@ export async function POST(request: Request) {
     }));
 
     // Insert bookmarks
-    await db.transaction(async (tx) => {
+    await db.transaction(async (tx: typeof db) => {
       for (const record of processedRecords) {
         await tx.insert(bookmarks).values(record);
       }
