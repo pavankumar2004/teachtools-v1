@@ -35,6 +35,7 @@
     "@tailwindcss/typography": "^0.5.15",
     "@vercel/analytics": "^1.5.0",
     "@vercel/postgres": "^0.10.0",
+    "@vercel/speed-insights": "^1.2.0",
     "ai": "^3.4.33",
     "bohoauth": "^1.1.2",
     "cheerio": "^1.0.0",
