@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import { drizzle as vercelDrizzle } from "drizzle-orm/vercel-postgres";
 import { sql } from "@vercel/postgres";
+import postgres from "postgres";
 import * as schema from "./schema";
 import "dotenv/config";
 
@@ -52,43 +53,70 @@ class MockDatabase {
   }
 }
 
-// Create the appropriate database client based on environment
+// Create the database client
 let db: any;
 
 // During build time, use the mock implementation
 if (isBuildTime) {
   console.log('Using mock database for build time');
-  db = MockDatabase.createMockDb() as any;
+  db = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: () => Promise.resolve([]),
+        }),
+      }),
+    }),
+    insert: () => ({
+      values: () => Promise.resolve({ insertId: 1 }),
+    }),
+    delete: () => ({
+      where: () => Promise.resolve({ count: 0 }),
+    }),
+    update: () => ({
+      set: () => ({
+        where: () => Promise.resolve({ count: 0 }),
+      }),
+    }),
+    transaction: (callback: any) => Promise.resolve(callback({})),
+  };
 }
-// For all runtime environments (local, development, production on Vercel), use the Vercel Postgres client
-// Ensure POSTGRES_URL is available in all these environments.
+// In production, use the Vercel Postgres client
 else if (process.env.POSTGRES_URL) {
-  console.log('Using Vercel Postgres client');
+  console.log('Using Vercel Postgres client in production');
   db = vercelDrizzle(sql, { schema });
-} 
-// Fallback if POSTGRES_URL is not set, though this should ideally not happen in a configured environment.
+}
+// For local development, use Supabase
 else {
-  console.error('POSTGRES_URL is not set. Database connection will likely fail or use mock.');
-  // Fallback to mock, or handle error as appropriate for your application
-  // Forcing mock here to prevent crashes if POSTGRES_URL is missing.
-  db = MockDatabase.createMockDb() as any; 
+  console.log('Using Supabase database');
+  const connectionString = process.env.DATABASE_URL || "postgresql://postgres:startup@db.ibbpzymbisxiakfhyuqc.supabase.co:5432/postgres";
+  db = drizzle(postgres(connectionString, {
+    ssl: 'require',
+    max: 10,
+    idle_timeout: 20,
+    connect_timeout: 10
+  }), { schema });
 }
 
-// Export the database client
 export { db };
 
 // Export a function to get a fresh database connection for serverless functions
 export function getDb() {
   if (isBuildTime) {
     return MockDatabase.createMockDb() as any;
-  } 
-  // For all runtime environments, use Vercel Postgres client
+  }
+  // In production, use the Vercel Postgres client
   else if (process.env.POSTGRES_URL) {
     return vercelDrizzle(sql, { schema });
-  } 
-  // Fallback if POSTGRES_URL is not set
+  }
+  // For local development, use Supabase
   else {
-    console.error('POSTGRES_URL is not set for getDb. Returning mock DB.');
-    return MockDatabase.createMockDb() as any;
+    const connectionString = process.env.DATABASE_URL || "postgresql://postgres:startup@db.ibbpzymbisxiakfhyuqc.supabase.co:5432/postgres";
+    return drizzle(postgres(connectionString, {
+      ssl: 'require',
+      max: 10,
+      idle_timeout: 20,
+      connect_timeout: 10
+    }), { schema });
   }
 }
