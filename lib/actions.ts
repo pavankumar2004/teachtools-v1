@@ -499,9 +499,32 @@ export async function bulkUploadBookmarks(
             return;
           }
 
-          // If we have at least a title, consider it successful
-          if (content.title) {
-            // Create bookmark data
+          // Validate that all required fields are present
+          const requiredFields = [
+            { field: 'title', value: content.title },
+            { field: 'description', value: content.description },
+            { field: 'url', value: content.url },
+            { field: 'overview', value: content.overview },
+            { field: 'search_results', value: content.search_results },
+            { field: 'favicon', value: content.favicon },
+            { field: 'ogImage', value: content.ogImage },
+            { field: 'slug', value: content.slug }
+          ];
+          
+          // Check for any missing or empty fields
+          const missingFields = requiredFields
+            .filter(item => !item.value || item.value.trim() === '')
+            .map(item => item.field);
+          
+          if (missingFields.length > 0) {
+            // If any required fields are missing, consider it an error
+            const missingFieldsStr = missingFields.join(', ');
+            const errorMsg = `${url}: Missing required fields: ${missingFieldsStr}`;
+            errors.push(errorMsg);
+            console.log(`[URL] ${errorMsg}`);
+            resolve(null); // Return null to indicate failure
+          } else {
+            // All required fields are present, create bookmark data
             const bookmarkData: BookmarkData = {
               title: content.title,
               description: content.description,
@@ -520,11 +543,6 @@ export async function bulkUploadBookmarks(
 
             console.log(`[URL] Successfully processed: "${content.title}"`);
             resolve(bookmarkData); // Return the bookmark data
-          } else {
-            // If we don't have a title, consider it an error
-            errors.push(`${url}: Failed to extract content (no title found)`);
-            console.log(`[URL] Failed to extract content (no title found): ${url}`);
-            resolve(null); // Return null to indicate failure
           }
         } catch (error) {
           // Clear the timeout since we completed with an error
@@ -562,65 +580,93 @@ export async function bulkUploadBookmarks(
       }
     }
 
-    // Check if we have any errors - if so, don't save anything
+    // Log any errors encountered during processing, but continue with insertion
     if (errors.length > 0) {
-      console.log(`\n===== BULK UPLOAD FAILED =====`);
+      console.log(`\n===== BULK UPLOAD ENCOUNTERED ERRORS =====`);
       console.log(`Encountered ${errors.length} errors during processing:`);
       errors.forEach((err, idx) => console.log(`  [${idx + 1}] ${err}`));
-      
-      return {
-        success: false,
-        error: `Failed to process all URLs. Found ${errors.length} errors.`,
-        data: { errors }
-      };
     }
     
-    // If we have no bookmarks to insert, that's an error
+    // Log if we have no bookmarks to insert (we'll continue to the reporting section)
     if (bookmarksToInsert.length === 0) {
-      console.log(`\n===== BULK UPLOAD FAILED =====`);
+      console.log(`\n===== NO VALID BOOKMARKS FOUND =====`);
       console.log(`No valid bookmarks found to insert`);
-      
-      return {
-        success: false,
-        error: "No valid bookmarks found to insert",
-      };
     }
     
-    // Now insert all bookmarks in a single transaction if possible
+    // Now insert bookmarks - even if we had some processing errors
     console.log(`\n===== INSERTING ${bookmarksToInsert.length} BOOKMARKS =====`);
-    try {
-      // Insert all bookmarks
-      await db.insert(bookmarks).values(bookmarksToInsert);
-      
-      // Revalidate paths after successful insertion
-      revalidatePath("/admin");
-      revalidatePath("/[slug]");
-      
-      const resultMessage = `Successfully imported ${bookmarksToInsert.length} bookmarks.`;
-      console.log(`\n===== BULK UPLOAD COMPLETED =====`);
-      console.log(`Success: ${bookmarksToInsert.length} bookmarks inserted`);
-      console.log(`Result message: ${resultMessage}`);
-      
-      return {
-        success: true,
-        message: resultMessage,
-        progress: {
-          current: bookmarksToInsert.length,
-          total: bookmarksToInsert.length,
-          lastAdded: bookmarksToInsert.length > 0 ? bookmarksToInsert[bookmarksToInsert.length - 1].title : "",
-        }
-      };
-    } catch (dbError) {
-      const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
-      console.log(`\n===== DATABASE INSERTION FAILED =====`);
-      console.log(`Error message: ${errorMessage}`);
-      console.error(`Error details:`, dbError);
-      
-      return {
-        success: false,
-        error: `Failed to save bookmarks to database: ${errorMessage}`,
-      };
+    
+    // Track successful insertions and database errors
+    let successfulInsertions = 0;
+    let databaseErrors: string[] = [];
+    
+    // If we have no bookmarks to insert, we'll report this but not fail completely
+    if (bookmarksToInsert.length === 0) {
+      console.log(`\n===== NO VALID BOOKMARKS TO INSERT =====`);
+    } else {
+      try {
+        // Insert all bookmarks
+        await db.insert(bookmarks).values(bookmarksToInsert);
+        
+        // Revalidate paths after successful insertion
+        revalidatePath("/admin");
+        revalidatePath("/[slug]");
+        
+        successfulInsertions = bookmarksToInsert.length;
+        console.log(`Success: ${successfulInsertions} bookmarks inserted`);
+      } catch (dbError) {
+        const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
+        console.log(`\n===== DATABASE INSERTION ERROR =====`);
+        console.log(`Error message: ${errorMessage}`);
+        console.error(`Error details:`, dbError);
+        
+        // Add database error to our errors list
+        databaseErrors.push(`Database error: ${errorMessage}`);
+        errors.push(`Database error: ${errorMessage}`);
+      }
     }
+    
+    // Prepare the final result message
+    const totalUrls = urlList.filter(url => url.trim()).length;
+    const processedSuccessfully = bookmarksToInsert.length;
+    const processErrors = errors.length - databaseErrors.length; // Processing errors, not DB errors
+    
+    let resultMessage = '';
+    let isSuccess = false;
+    
+    if (successfulInsertions > 0) {
+      resultMessage = `Successfully imported ${successfulInsertions} out of ${totalUrls} bookmarks.`;
+      isSuccess = true;
+    } else {
+      resultMessage = `No bookmarks were imported.`;
+    }
+    
+    if (processErrors > 0 || databaseErrors.length > 0) {
+      resultMessage += ` Encountered ${processErrors} processing errors`;
+      if (databaseErrors.length > 0) {
+        resultMessage += ` and ${databaseErrors.length} database errors`;
+      }
+      resultMessage += '.'; 
+    }
+    
+    console.log(`\n===== BULK UPLOAD COMPLETED =====`);
+    console.log(`Result message: ${resultMessage}`);
+    
+    return {
+      success: isSuccess,
+      message: resultMessage,
+      data: { 
+        totalUrls,
+        processedSuccessfully,
+        successfulInsertions,
+        errors: errors.length > 0 ? errors : undefined 
+      },
+      progress: {
+        current: successfulInsertions,
+        total: totalUrls,
+        lastAdded: bookmarksToInsert.length > 0 ? bookmarksToInsert[bookmarksToInsert.length - 1].title : "",
+      }
+    };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.log(`===== BULK UPLOAD FAILED =====`);
@@ -732,26 +778,17 @@ export async function generateContent(url: string): Promise<GeneratedContent> {
 
     console.log(`[generateContent] Processing URL: ${url}`);
 
-    // We need to provide a full URL including origin for fetch to work properly in server actions
-    // Get current URL origin or use a default
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NODE_ENV === "development"
-        ? "http://localhost:3000"
-        : "";
+    console.log(`[generateContent] Preparing to fetch metadata for URL: ${url}`);
     
-    const metadataUrl = `${baseUrl}/api/metadata?url=${encodeURIComponent(url)}`;
-
+    // For now, let's use a more reliable fetch approach with absolute URL and proper cache settings
+    const metadataUrl = `http://localhost:3000/api/metadata?url=${encodeURIComponent(url)}`;
     console.log(`[generateContent] Fetching metadata from: ${metadataUrl}`);
-
-    // First, fetch metadata from our API
-    // Use server-side fetch without any auth headers
+    
     const metadataResponse = await fetch(metadataUrl, {
       method: "GET",
       headers: {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       },
       cache: "no-store",
     });
@@ -813,12 +850,13 @@ export async function generateContent(url: string): Promise<GeneratedContent> {
 
       // Generate overview using Claude
       console.log(`[generateContent] Generating overview using API`);
-      // Use the same baseUrl for the generate API
-      const overviewResponse = await fetch(`${baseUrl}/api/generate`, {
+      // Use absolute URL with localhost for development
+      const overviewResponse = await fetch(`http://localhost:3000/api/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        cache: "no-store",
         body: JSON.stringify({
           url: url,
           searchResults: JSON.stringify(searchResults),
@@ -903,13 +941,8 @@ export async function testMetadataApi(
 
     console.log(`Testing metadata API with URL: ${url}`);
     
-    // Get current URL origin or use a default
-    const origin = typeof window !== 'undefined' 
-      ? window.location.origin 
-      : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-    
-    // Use full URL for API call
-    const apiUrl = `${origin}/api/metadata?url=${encodeURIComponent(url)}`;
+    // Use absolute URL with localhost for development
+    const apiUrl = `http://localhost:3000/api/metadata?url=${encodeURIComponent(url)}`;
     console.log(`Calling API at: ${apiUrl}`);
     
     const response = await fetch(apiUrl);
