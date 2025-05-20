@@ -14,8 +14,9 @@ import { EmailForm } from "@/components/email-form";
 
 import Balancer from "react-wrap-balancer";
 
-// Mark this page as dynamic to ensure it's rendered at request time in production
-export const dynamic = 'force-dynamic';
+// Use Incremental Static Regeneration with a 1-hour revalidation period
+// This significantly improves page performance while keeping content fresh
+export const revalidate = 3600; // Revalidate every hour
 
 export default async function Home({
   searchParams,
@@ -28,20 +29,17 @@ export default async function Home({
   let error = null;
   
   try {
-    // Fetch data with proper error handling
-    const bookmarksPromise = getAllBookmarks().catch(err => {
-      console.error('Error fetching bookmarks:', err);
-      return [];
-    });
-    
-    const categoriesPromise = getAllCategories().catch(err => {
-      console.error('Error fetching categories:', err);
-      return [];
-    });
-    
+    // Use Promise.all to fetch data in parallel with proper caching
+    // This reduces waterfall requests and improves performance
     [bookmarks, categories] = await Promise.all([
-      bookmarksPromise,
-      categoriesPromise,
+      getAllBookmarks().catch(err => {
+        console.error('Error fetching bookmarks:', err);
+        return [];
+      }),
+      getAllCategories().catch(err => {
+        console.error('Error fetching categories:', err);
+        return [];
+      })
     ]);
     
     // Ensure bookmarks and categories are arrays
@@ -90,13 +88,13 @@ export default async function Home({
           <div className="mx-auto max-w-3xl space-y-8 text-center">
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
               <Balancer>
-                Discover AI Tools That Transform Your Teaching
+                Top AI Tools for Modern Educators
               </Balancer>
             </h1>
             <p className="text-xl text-muted-foreground">
               <Balancer>
-                TeachTools.site helps educators find the best AI tools to enhance classroom engagement, 
-                streamline administrative tasks, and personalize learning experiences.
+                Discover powerful AI solutions that revolutionize lesson planning, grading, 
+                content creation, and classroom management for today's teachers.
               </Balancer>
             </p>
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">

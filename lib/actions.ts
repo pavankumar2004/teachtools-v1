@@ -773,31 +773,25 @@ export async function generateContent(url: string): Promise<GeneratedContent> {
   try {
     if (!url) {
       throw new Error("URL is required");
-
     }
 
-    console.log(`[generateContent] Processing URL: ${url}`);
-
-    console.log(`[generateContent] Preparing to fetch metadata for URL: ${url}`);
+    // Use relative URL with proper cache settings for better performance
+    const metadataUrl = `/api/metadata?url=${encodeURIComponent(url)}`;
     
-    // For now, let's use a more reliable fetch approach with absolute URL and proper cache settings
-    const metadataUrl = `http://localhost:3000/api/metadata?url=${encodeURIComponent(url)}`;
-    console.log(`[generateContent] Fetching metadata from: ${metadataUrl}`);
-    
+    // Use next.js cache() API for better performance
     const metadataResponse = await fetch(metadataUrl, {
       method: "GET",
       headers: {
         "Accept": "application/json",
         "Content-Type": "application/json",
       },
-      cache: "no-store",
+      // Use stale-while-revalidate caching strategy for better performance
+      next: { revalidate: 3600 }, // Cache for 1 hour
     });
 
     if (!metadataResponse.ok) {
-      console.log(`[generateContent] Metadata response not OK. Status: ${metadataResponse.status}`);
       // Try to read the response as text first to see what we're actually getting
       const responseText = await metadataResponse.text();
-      console.log(`[generateContent] Raw response: ${responseText.substring(0, 1000)}...`);
       
       // If it starts with "<", it's probably HTML, not JSON
       if (responseText.trim().startsWith("<")) {
@@ -810,7 +804,7 @@ export async function generateContent(url: string): Promise<GeneratedContent> {
         try {
           errorData = JSON.parse(responseText);
         } catch (e) {
-          console.error(`[generateContent] Failed to parse error response:`, e);
+          console.error(`Failed to parse error response:`, e);
         }
       }
       
@@ -820,43 +814,34 @@ export async function generateContent(url: string): Promise<GeneratedContent> {
       );
     }
 
-    // Try to safely parse the JSON response
+    // Parse the JSON response directly without intermediate text conversion
     let metadata;
     try {
-      const responseText = await metadataResponse.text();
-      console.log(`[generateContent] Metadata response text (first 100 chars): ${responseText.substring(0, 1000)}...`);
-      metadata = JSON.parse(responseText);
+      metadata = await metadataResponse.json();
     } catch (error) {
-      console.error(`[generateContent] Error parsing metadata JSON:`, error);
+      console.error(`Error parsing metadata JSON:`, error);
       throw new Error(`Failed to parse metadata response: ${error instanceof Error ? error.message : String(error)}`);
     }
     
-    console.log(`[generateContent] Successfully parsed metadata:`, metadata);
-
     // Basic fallback for required fields
     const pageTitle = metadata.title || url;
     const pageDescription = metadata.description || "";
 
     try {
-      // Get search results using Exa
-      console.log(`[generateContent] Getting content from Exa for: ${url}`);
+      // Get search results using Exa with proper error handling
       const exa = new Exa(process.env.EXASEARCH_API_KEY as string);
       const searchResults = await exa.getContents([url], {
         text: true,
         livecrawl: "fallback",
       });
 
-      console.log(`[generateContent] Exa search results retrieved`);
-
-      // Generate overview using Claude
-      console.log(`[generateContent] Generating overview using API`);
-      // Use absolute URL with localhost for development
-      const overviewResponse = await fetch(`http://localhost:3000/api/generate`, {
+      // Generate overview using Claude with relative URL and caching
+      const overviewResponse = await fetch(`/api/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        cache: "no-store",
+        next: { revalidate: 86400 }, // Cache for 24 hours since overviews rarely change
         body: JSON.stringify({
           url: url,
           searchResults: JSON.stringify(searchResults),
@@ -864,21 +849,17 @@ export async function generateContent(url: string): Promise<GeneratedContent> {
       });
 
       if (!overviewResponse.ok) {
-        console.log(`[generateContent] Overview generation failed. Status: ${overviewResponse.status}`);
         throw new Error(`Failed to generate overview. Status: ${overviewResponse.status}`);
       }
 
-      // Safely parse the overview response
+      // Directly parse JSON response without intermediate text conversion
       let overviewData;
       try {
-        const responseText = await overviewResponse.text();
-        overviewData = JSON.parse(responseText);
+        overviewData = await overviewResponse.json();
       } catch (error) {
-        console.error(`[generateContent] Error parsing overview response:`, error);
+        console.error(`Error parsing overview response:`, error);
         throw new Error(`Failed to parse overview response: ${error instanceof Error ? error.message : String(error)}`);
       }
-
-      console.log(`[generateContent] Overview generated successfully`);
 
       // Generate a slug from the title
       const slug = generateSlug(pageTitle);

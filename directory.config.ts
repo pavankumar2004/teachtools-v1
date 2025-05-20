@@ -1,7 +1,7 @@
 export const directory = {
   baseUrl: "https://teachtools.site",
   name: "teachtools.site",
-  title: "TeachTools.site | AI Tools Directory for Educators",
+  title: "TeachTools | Top AI Solutions for K-12 & Higher Education Teachers",
   description:
-    "A curated collection of AI tools and resources for teachers to enhance classroom engagement, streamline administrative tasks, and personalize learning experiences.",
+    "Discover 100+ vetted AI tools for educators that save time on grading, lesson planning, content creation, and classroom management. Find the perfect AI assistant for your teaching needs.",
 };
