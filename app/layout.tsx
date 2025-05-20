@@ -30,10 +30,35 @@ const font = Font({
   display: "swap",
 });
 
+// This function generates metadata for the root layout
+// For dynamic routes, use generateMetadata in the page file
 export const metadata: Metadata = {
   title: directory.title,
   description: directory.description,
   metadataBase: new URL(directory.baseUrl),
+  // Canonical URL will be set dynamically in each page
+  // The root layout provides the base URL
+  openGraph: {
+    title: directory.title,
+    description: directory.description,
+    url: directory.baseUrl,
+    siteName: directory.name,
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: directory.title,
+    description: directory.description,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
 };
 
 export default function RootLayout({

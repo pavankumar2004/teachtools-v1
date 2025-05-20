@@ -6,6 +6,9 @@ import Balancer from "react-wrap-balancer";
 // Database Imports
 import { getBookmarkBySlug } from "@/lib/data";
 
+// Import directory config
+import { directory } from "@/directory.config";
+
 // Component Imports
 import { Section } from "@/components/craft";
 import { Button } from "@/components/ui/button";
@@ -33,16 +36,23 @@ export async function generateMetadata(
 
   const previousImages = (await parent).openGraph?.images || [];
 
+  // Create a concise title that fits within pixel limits
+  const pageTitle = `${bookmark.title} | TeachTools`;
+  
+  // Create a concise description that fits within pixel limits
+  const pageDescription = (bookmark.description || bookmark.overview || `A curated AI tool for educators`).substring(0, 150);
+  
   return {
-    title: `${bookmark.title} | Directory`,
-    description:
-      bookmark.description ||
-      bookmark.overview ||
-      `A curated bookmark from Directory`,
+    title: pageTitle,
+    description: pageDescription,
+    // Add canonical URL to prevent duplicate content issues
+    alternates: {
+      canonical: new URL(`/${params.slug}`, new URL(directory.baseUrl)).href,
+    },
     openGraph: {
-      title: bookmark.title,
-      description: bookmark.description || bookmark.overview || undefined,
-      url: bookmark.url,
+      title: pageTitle,
+      description: pageDescription,
+      url: new URL(`/${params.slug}`, new URL(directory.baseUrl)).href,
       images: [
         ...(bookmark.ogImage ? [bookmark.ogImage] : []),
         ...previousImages,
@@ -50,8 +60,8 @@ export async function generateMetadata(
     },
     twitter: {
       card: "summary_large_image",
-      title: bookmark.title,
-      description: bookmark.description || bookmark.overview || undefined,
+      title: pageTitle,
+      description: pageDescription,
       images: bookmark.ogImage ? [bookmark.ogImage] : [],
     },
   };

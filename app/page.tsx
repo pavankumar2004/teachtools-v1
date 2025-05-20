@@ -1,6 +1,7 @@
 // React + Next Imports
 import React from "react";
 import { Suspense } from "react";
+import type { Metadata } from "next";
 
 // Database Imports
 import { getAllBookmarks, getAllCategories, Bookmark, Category } from "@/lib/data";
@@ -14,9 +15,23 @@ import { EmailForm } from "@/components/email-form";
 
 import Balancer from "react-wrap-balancer";
 
+// Import directory config
+import { directory } from "@/directory.config";
+
 // Use Incremental Static Regeneration with a 1-hour revalidation period
 // This significantly improves page performance while keeping content fresh
 export const revalidate = 3600; // Revalidate every hour
+
+// Generate metadata for this page, including canonical URL
+export function generateMetadata(): Metadata {
+  return {
+    title: directory.title,
+    description: directory.description,
+    alternates: {
+      canonical: new URL('/', new URL(directory.baseUrl)).href,
+    },
+  };
+}
 
 export default async function Home({
   searchParams,
