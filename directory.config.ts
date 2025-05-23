@@ -1,7 +1,7 @@
 export const directory = {
-  baseUrl: "https://teachtools.site",
-  name: "teachtools.site",
-  title: "TeachTools | AI Solutions for Educators & Teachers",
+  baseUrl: "https://teach.droptools.site",
+  name: "teach.droptools.site",
+  title: "TeachTools.site | AI Tools Directory for Educators",
   description:
     "Discover vetted AI tools for educators that save time on grading, lesson planning, and classroom management. Find the perfect teaching assistant.",
 };
